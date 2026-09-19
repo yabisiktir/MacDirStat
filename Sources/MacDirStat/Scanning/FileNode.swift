@@ -105,7 +105,16 @@ final class FileNode: Identifiable, @unchecked Sendable {
         }
     }
 
+    /// Subdirectories only, computed once and cached. `children` holds every
+    /// file and folder, so filtering on each access is O(children); the sidebar
+    /// `OutlineGroup` queries this for every visible row on each collapse/expand,
+    /// which is the difference between a snappy and a laggy tree on large scans.
+    /// The tree is immutable once scanning finishes, so the cache is always valid.
+    private var cachedDirectoryChildren: [FileNode]?
     var directoryChildren: [FileNode] {
-        children.filter(\.isDirectory)
+        if let cached = cachedDirectoryChildren { return cached }
+        let dirs = children.filter(\.isDirectory)
+        cachedDirectoryChildren = dirs
+        return dirs
     }
 }

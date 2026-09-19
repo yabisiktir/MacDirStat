@@ -21,9 +21,12 @@ struct DirectoryTreeView: View {
         .listStyle(.sidebar)
     }
 
+    // The sidebar only ever shows and selects directories, so restrict the
+    // lookup to the directory subtree. Walking `children` here would traverse
+    // every file on the volume on each click; `directoryChildren` skips them.
     private func findNode(id: UInt64, in node: FileNode) -> FileNode? {
         if node.id == id { return node }
-        for child in node.children {
+        for child in node.directoryChildren {
             if let found = findNode(id: id, in: child) {
                 return found
             }
