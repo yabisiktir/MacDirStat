@@ -54,5 +54,9 @@ codesign --force --deep --sign - "$APP_BUNDLE"
 echo "==> Done: $APP_BUNDLE"
 
 if [[ "${1:-}" == "--open" ]]; then
-	open "$APP_BUNDLE"
+	# `open` re-activates an already-running instance instead of relaunching,
+	# which would keep showing the old binary — quit it first.
+	pkill -x "$APP_NAME" 2>/dev/null || true
+	sleep 0.5
+	open -n "$APP_BUNDLE"
 fi
