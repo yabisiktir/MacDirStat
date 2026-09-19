@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct ContentView: View {
@@ -155,6 +156,9 @@ struct ContentView: View {
                 coordinator = ScanCoordinator(appState: appState)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openFolder)) { _ in
+            openFolderPicker()
+        }
         .focusedSceneValue(\.scanAction, {
             selectAndScan()
         })
@@ -163,6 +167,19 @@ struct ContentView: View {
     private func selectAndScan() {
         coordinator?.cancel()
         appState.scanStatus = .idle
+    }
+
+    private func openFolderPicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a folder to scan"
+        panel.prompt = "Scan"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            coordinator?.startScan(path: url.path(percentEncoded: false))
+        }
     }
 }
 
