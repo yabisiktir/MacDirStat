@@ -11,7 +11,9 @@ swift run MacDirStat       # Run the app
 open Package.swift         # Open in Xcode
 ```
 
-No external dependencies. No test target configured yet (`swift test` will fail). No linter configured; Swift 6 strict concurrency mode is enforced via `swiftLanguageMode(.v6)` in Package.swift.
+No external dependencies. Unit tests live in `Tests/MacDirStatTests` (`swift test`), covering the FileNode aggregation, categorization, byte formatting, and the treemap layout engine. No linter configured; Swift 6 strict concurrency mode is enforced via `swiftLanguageMode(.v6)` in Package.swift.
+
+CI runs build + tests on every push/PR (`.github/workflows/ci.yml`); tagging `v*` builds and attaches a packaged `.app` zip to a GitHub release (`.github/workflows/release.yml`).
 
 ## Architecture
 
