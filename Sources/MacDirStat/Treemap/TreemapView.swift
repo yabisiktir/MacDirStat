@@ -11,6 +11,7 @@ struct TreemapView: View {
     @State private var selectedItemID: Int?
     @State private var lastSize: CGSize = .zero
     @State private var layoutTask: Task<Void, Never>?
+    @State private var resizeDebounce: Task<Void, Never>?
     @State private var zoomScale: CGFloat = 1.0
     @State private var panOffset: CGPoint = .zero
     @State private var showLabels: Bool = true
@@ -32,7 +33,8 @@ struct TreemapView: View {
                     zoomScale: zoomScale,
                     panOffset: panOffset,
                     showLabels: showLabels,
-                    sizeMetric: sizeMetric
+                    sizeMetric: sizeMetric,
+                    layoutSize: lastSize
                 )
 
                 // Lightweight hover overlay — redraws only the single highlight rect
@@ -40,7 +42,8 @@ struct TreemapView: View {
                     items: items,
                     hoveredItemID: hoveredItemID,
                     zoomScale: zoomScale,
-                    panOffset: panOffset
+                    panOffset: panOffset,
+                    layoutSize: lastSize
                 )
             }
             .onContinuousHover { phase in
@@ -97,12 +100,13 @@ struct TreemapView: View {
                 )
             }
             .onChange(of: geometry.size) { _, newSize in
-                recomputeLayout(size: newSize)
+                scheduleResizeLayout(size: newSize)
             }
             .onAppear {
                 recomputeLayout(size: geometry.size)
             }
             .onChange(of: root.id) {
+                resizeDebounce?.cancel()
                 zoomScale = 1.0
                 panOffset = .zero
                 recomputeLayout(size: geometry.size)
@@ -199,10 +203,28 @@ struct TreemapView: View {
         layoutTask = Task.detached { [root] in
             let engine = TreemapLayoutEngine()
             let bounds = TreemapRect(x: 0, y: 0, width: Double(size.width), height: Double(size.height))
-            let newItems = engine.layout(root: root, in: bounds, sizeMetric: metric)
+            // Cancellable: a resize or drill-down that supersedes this layout
+            // aborts it instead of letting a stale pass run to completion.
+            guard let newItems = engine.layout(
+                root: root, in: bounds, sizeMetric: metric,
+                isCancelled: { Task.isCancelled }
+            ) else { return }
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 items = newItems
             }
+        }
+    }
+
+    /// Debounced relayout for continuous window resizing. During a drag the
+    /// geometry fires many times a second; recomputing on every tick floods
+    /// the CPU, so wait for the size to settle before doing the real layout.
+    private func scheduleResizeLayout(size: CGSize) {
+        resizeDebounce?.cancel()
+        resizeDebounce = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(90))
+            guard !Task.isCancelled else { return }
+            recomputeLayout(size: size)
         }
     }
 
@@ -222,6 +244,7 @@ private struct TreemapBaseCanvas: View {
     let panOffset: CGPoint
     let showLabels: Bool
     let sizeMetric: SizeMetric
+    let layoutSize: CGSize
 
     var body: some View {
         Canvas { context, size in
@@ -232,11 +255,20 @@ private struct TreemapBaseCanvas: View {
                 zoomScale: zoomScale,
                 panOffset: panOffset,
                 showLabels: showLabels,
-                sizeMetric: sizeMetric
+                sizeMetric: sizeMetric,
+                fitScale: fitScale(from: layoutSize, to: size)
             )
             renderer.draw(in: &context, size: size)
         }
     }
+}
+
+/// While a resize is settling, the layout is still sized for the previous
+/// bounds. Stretch it to fill the current canvas so resizing looks live
+/// instead of leaving black gaps until the debounced relayout lands.
+private func fitScale(from layoutSize: CGSize, to size: CGSize) -> CGSize {
+    guard layoutSize.width > 0, layoutSize.height > 0 else { return CGSize(width: 1, height: 1) }
+    return CGSize(width: size.width / layoutSize.width, height: size.height / layoutSize.height)
 }
 
 /// Lightweight overlay that draws only the hover highlight rectangle.
@@ -246,17 +278,19 @@ private struct TreemapHoverOverlay: View {
     let hoveredItemID: Int?
     let zoomScale: CGFloat
     let panOffset: CGPoint
+    let layoutSize: CGSize
 
     var body: some View {
-        Canvas { context, _ in
+        Canvas { context, size in
             guard let hoveredID = hoveredItemID,
                   let item = items.first(where: { $0.id == hoveredID }) else { return }
 
+            let fit = fitScale(from: layoutSize, to: size)
             let screenRect = CGRect(
-                x: panOffset.x + item.rect.x * zoomScale,
-                y: panOffset.y + item.rect.y * zoomScale,
-                width: item.rect.width * zoomScale,
-                height: item.rect.height * zoomScale
+                x: panOffset.x + item.rect.x * zoomScale * fit.width,
+                y: panOffset.y + item.rect.y * zoomScale * fit.height,
+                width: item.rect.width * zoomScale * fit.width,
+                height: item.rect.height * zoomScale * fit.height
             )
             let path = Path(roundedRect: screenRect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 1)
             context.fill(path, with: .color(.white.opacity(0.25)))

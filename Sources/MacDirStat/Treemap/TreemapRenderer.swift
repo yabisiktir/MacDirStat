@@ -8,17 +8,21 @@ struct TreemapRenderer {
     let panOffset: CGPoint
     let showLabels: Bool
     let sizeMetric: SizeMetric
+    // Stretch factor applied while a resize settles (1,1 once relaid out).
+    var fitScale: CGSize = CGSize(width: 1, height: 1)
 
     func draw(in context: inout GraphicsContext, size: CGSize) {
         let viewport = CGRect(origin: .zero, size: size)
+        let sx = zoomScale * fitScale.width
+        let sy = zoomScale * fitScale.height
 
         for item in items {
             // Transform layout coordinates to screen coordinates
             let screenRect = CGRect(
-                x: panOffset.x + item.rect.x * zoomScale,
-                y: panOffset.y + item.rect.y * zoomScale,
-                width: item.rect.width * zoomScale,
-                height: item.rect.height * zoomScale
+                x: panOffset.x + item.rect.x * sx,
+                y: panOffset.y + item.rect.y * sy,
+                width: item.rect.width * sx,
+                height: item.rect.height * sy
             )
 
             // Viewport culling — skip items entirely off-screen
