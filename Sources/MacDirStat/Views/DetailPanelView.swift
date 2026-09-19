@@ -89,7 +89,7 @@ struct DetailPanelView: View {
 
                 // Actions
                 Button {
-                    NSWorkspace.shared.selectFile(node.path, inFileViewerRootedAtPath: "")
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
                 } label: {
                     Label("Reveal in Finder", systemImage: "arrow.right.circle")
                 }

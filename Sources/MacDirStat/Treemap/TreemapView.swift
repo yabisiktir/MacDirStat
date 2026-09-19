@@ -233,8 +233,10 @@ struct TreemapView: View {
     }
 
     private func revealInFinder(node: FileNode) {
-        let path = node.path
-        NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
+        // activateFileViewerSelecting reliably reveals the item AND brings
+        // Finder to the front, unlike selectFile(_:inFileViewerRootedAtPath:)
+        // which can leave Finder behind the active app.
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
     }
 }
 

@@ -23,7 +23,15 @@ final class FileNode: Identifiable, @unchecked Sendable {
             components.append(current.name)
             node = current.parent
         }
-        return components.reversed().joined(separator: "/")
+        components.reverse()
+        // The root node's name is an absolute path (e.g. "/" for a whole
+        // volume, or "/Users/me/Downloads"); join the rest onto it without
+        // duplicating separators, otherwise a volume scan yields "//Users/…".
+        guard var result = components.first else { return "" }
+        for component in components.dropFirst() {
+            result += result.hasSuffix("/") ? component : "/" + component
+        }
+        return result
     }
 
     init(

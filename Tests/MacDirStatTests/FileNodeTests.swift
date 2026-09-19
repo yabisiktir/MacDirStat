@@ -56,6 +56,18 @@ final class FileNodeTests: XCTestCase {
         XCTAssertEqual(sub.children.first(where: { $0.name == "b.jpg" })?.path, "root/sub/b.jpg")
     }
 
+    func testVolumeRootPathHasNoDoubleSlash() {
+        // Scanning a whole volume gives the root the name "/".
+        let root = FileNode(inode: 1, name: "/", isDirectory: true)
+        let users = FileNode(inode: 2, name: "Users", isDirectory: true)
+        let file = FileNode(inode: 3, name: "readme.txt", isDirectory: false, ownSize: 1)
+        users.addChild(file)
+        root.addChild(users)
+        XCTAssertEqual(root.path, "/")
+        XCTAssertEqual(users.path, "/Users")
+        XCTAssertEqual(file.path, "/Users/readme.txt")
+    }
+
     func testCategoryBreakdownSumsPerCategory() {
         let root = makeTree()
         let breakdown = Dictionary(uniqueKeysWithValues:
