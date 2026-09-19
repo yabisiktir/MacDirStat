@@ -14,6 +14,14 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
+        ),
+        .testTarget(
+            name: "MacDirStatTests",
+            dependencies: ["MacDirStat"],
+            path: "Tests/MacDirStatTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
         )
     ]
 )
