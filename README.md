@@ -10,7 +10,7 @@ Find out what's eating your storage with interactive treemap visualizations, jus
 
 - **Free and open source** — no paywall, no trial limits, no ads
 - **Native macOS app** — built with SwiftUI, feels right at home on your Mac
-- **Fast scanning** — uses low-level BSD `fts` APIs for speed that beats FileManager-based tools
+- **Fast scanning** — low-level BSD directory APIs with concurrent traversal for speed that beats FileManager-based tools
 - **Zero dependencies** — nothing to install, no runtimes, no frameworks to download
 - **Privacy-first** — runs entirely offline, never phones home
 
@@ -50,22 +50,33 @@ open Package.swift
 
 Zero external dependencies. Pure Swift Package Manager project.
 
+### Build a standalone .app
+
+`swift run` works, but to get a double-clickable app with a Dock icon, package it into a bundle:
+
+```bash
+./Packaging/build-app.sh --open
+```
+
+This produces `dist/MacDirStat.app` (release build, app icon, `Info.plist`, ad-hoc signed). Set the version with `VERSION=1.2.0 ./Packaging/build-app.sh`. For distribution outside your own machine, replace the ad-hoc signature in the script with a Developer ID identity and notarize.
+
 ## Architecture
 
 MacDirStat is built with SwiftUI and Swift 6 strict concurrency. A single `@Observable` **AppState** drives all views.
 
-**Scan pipeline:** User picks a folder → **ScanCoordinator** launches **FileScanner** → FileScanner uses BSD `fts_open`/`fts_read`/`fts_close` for fast traversal → streams `ScanEvent`s via `AsyncStream` → coordinator throttles UI updates at 50ms intervals → treemap renders.
+**Scan pipeline:** User picks a folder → **ScanCoordinator** launches **FileScanner** → FileScanner walks the tree with BSD `opendir`/`readdir` + `fstatat`, scanning sibling subdirectories concurrently via structured `TaskGroup`s → streams `ScanEvent`s via `AsyncStream` → coordinator throttles UI updates at 50ms intervals → treemap renders.
 
 ### Project Structure
 
 ```
 Sources/MacDirStat/
 ├── App/              # Entry point, AppState
-├── Scanning/         # FileScanner (BSD fts), ScanCoordinator, FileNode tree model
+├── Scanning/         # FileScanner (concurrent BSD traversal), ScanCoordinator, FileNode tree model
 ├── Categorization/   # FileCategory definitions, 200+ extension mappings
-├── Treemap/          # Squarify layout engine, Canvas renderer, hit testing
+├── Treemap/          # Squarify layout engine, Canvas renderer, hit testing, zoom/pan overlay
 ├── Views/            # ContentView, WelcomeView, DirectoryTreeView, DetailPanelView
 └── Utilities/        # ByteFormatter
+Packaging/            # build-app.sh, Info.plist, AppIcon.icns
 ```
 
 ## Contributing
