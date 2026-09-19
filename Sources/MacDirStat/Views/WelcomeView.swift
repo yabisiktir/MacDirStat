@@ -166,11 +166,13 @@ struct VolumeCard: View {
             .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isHovering ? .white.opacity(0.08) : .white.opacity(0.04))
+                    // Semantic overlay so cards read correctly in both light and
+                    // dark mode (Color.primary is dark on light, light on dark).
+                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(.white.opacity(isHovering ? 0.2 : 0.1), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(isHovering ? 0.18 : 0.08), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

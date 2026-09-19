@@ -5,6 +5,7 @@ struct ZoomPanOverlay: NSViewRepresentable {
     let onZoom: (_ factor: CGFloat, _ center: CGPoint) -> Void
     let onPanDelta: (_ dx: CGFloat, _ dy: CGFloat) -> Void
     let onMiddleClick: (_ location: CGPoint) -> Void
+    let onLeftClick: (_ location: CGPoint, _ clickCount: Int) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -16,6 +17,7 @@ struct ZoomPanOverlay: NSViewRepresentable {
         context.coordinator.onZoom = onZoom
         context.coordinator.onPanDelta = onPanDelta
         context.coordinator.onMiddleClick = onMiddleClick
+        context.coordinator.onLeftClick = onLeftClick
         context.coordinator.installMonitors()
         return view
     }
@@ -24,6 +26,7 @@ struct ZoomPanOverlay: NSViewRepresentable {
         context.coordinator.onZoom = onZoom
         context.coordinator.onPanDelta = onPanDelta
         context.coordinator.onMiddleClick = onMiddleClick
+        context.coordinator.onLeftClick = onLeftClick
     }
 
     static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
@@ -41,6 +44,7 @@ struct ZoomPanOverlay: NSViewRepresentable {
         var onZoom: ((_ factor: CGFloat, _ center: CGPoint) -> Void)?
         var onPanDelta: ((_ dx: CGFloat, _ dy: CGFloat) -> Void)?
         var onMiddleClick: ((_ location: CGPoint) -> Void)?
+        var onLeftClick: ((_ location: CGPoint, _ clickCount: Int) -> Void)?
 
         private var monitors: [Any] = []
         private var middleMouseDownLocation: CGPoint?
@@ -78,8 +82,17 @@ struct ZoomPanOverlay: NSViewRepresentable {
                 }
                 return event
             }
+            // Left clicks are handled here rather than via SwiftUI tap gestures:
+            // AppKit reports clickCount immediately, so a single click selects
+            // without the ~250ms delay SwiftUI adds while ruling out a double
+            // click. The event is passed through (not consumed).
+            let leftUp = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak self] event in
+                guard let self, let loc = self.locationInView(event) else { return event }
+                self.onLeftClick?(loc, event.clickCount)
+                return event
+            }
 
-            monitors = [middleDown, middleDrag, middleUp, scroll, magnify].compactMap { $0 }
+            monitors = [middleDown, middleDrag, middleUp, scroll, magnify, leftUp].compactMap { $0 }
         }
 
         func removeMonitors() {

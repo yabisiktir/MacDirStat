@@ -54,17 +54,6 @@ struct TreemapView: View {
                     hoveredItemID = nil
                 }
             }
-            .onTapGesture(count: 2) { location in
-                if let item = hitTestItem(at: screenToContent(location)), item.node.isDirectory {
-                    onDrillDown(item.node)
-                }
-            }
-            .onTapGesture(count: 1) { location in
-                if let item = hitTestItem(at: screenToContent(location)) {
-                    selectedItemID = item.id
-                    onSelect(item.node)
-                }
-            }
             .contextMenu {
                 if let hoveredID = hoveredItemID,
                    let item = items.first(where: { $0.id == hoveredID }) {
@@ -96,6 +85,9 @@ struct TreemapView: View {
                     },
                     onMiddleClick: { location in
                         performZoom(by: 0.5, centeredAt: location, viewSize: geometry.size)
+                    },
+                    onLeftClick: { location, clickCount in
+                        handleLeftClick(at: screenToContent(location), clickCount: clickCount)
                     }
                 )
             }
@@ -174,6 +166,18 @@ struct TreemapView: View {
         let contentHeight = viewSize.height * zoomScale
         panOffset.x = min(0, max(viewSize.width - contentWidth, panOffset.x))
         panOffset.y = min(0, max(viewSize.height - contentHeight, panOffset.y))
+    }
+
+    private func handleLeftClick(at point: CGPoint, clickCount: Int) {
+        guard let item = hitTestItem(at: point) else { return }
+        // First click of a double selects, second drills — natural and
+        // instant, since AppKit gives us the click count without waiting.
+        if clickCount >= 2 {
+            if item.node.isDirectory { onDrillDown(item.node) }
+        } else {
+            selectedItemID = item.id
+            onSelect(item.node)
+        }
     }
 
     private func hitTestID(at point: CGPoint) -> Int? {
