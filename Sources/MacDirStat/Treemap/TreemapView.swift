@@ -58,11 +58,10 @@ struct TreemapView: View {
                 if let hoveredID = hoveredItemID,
                    let item = items.first(where: { $0.id == hoveredID }) {
                     Button("Reveal in Finder") {
-                        revealInFinder(node: item.node)
+                        NodeActions.revealInFinder(item.node)
                     }
                     Button("Copy Path") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(item.node.path, forType: .string)
+                        NodeActions.copyPath(item.node)
                     }
                     if item.node.isDirectory {
                         Divider()
@@ -232,12 +231,6 @@ struct TreemapView: View {
         }
     }
 
-    private func revealInFinder(node: FileNode) {
-        // activateFileViewerSelecting reliably reveals the item AND brings
-        // Finder to the front, unlike selectFile(_:inFileViewerRootedAtPath:)
-        // which can leave Finder behind the active app.
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
-    }
 }
 
 /// Heavy canvas that renders all treemap items with fills, borders, labels.

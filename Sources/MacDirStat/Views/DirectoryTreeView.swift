@@ -16,6 +16,18 @@ struct DirectoryTreeView: View {
         )) {
             OutlineGroup(root.directoryChildren, id: \.id, children: \.optionalDirectoryChildren) { node in
                 DirectoryRow(node: node, sizeMetric: sizeMetric)
+                    .contextMenu {
+                        Button {
+                            NodeActions.revealInFinder(node)
+                        } label: {
+                            Label("Reveal in Finder", systemImage: "arrow.right.circle")
+                        }
+                        Button {
+                            NodeActions.copyPath(node)
+                        } label: {
+                            Label("Copy Path", systemImage: "doc.on.doc")
+                        }
+                    }
             }
         }
         .listStyle(.sidebar)
